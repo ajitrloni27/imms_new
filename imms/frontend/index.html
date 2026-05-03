@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IMMS — Industrial Machine Monitoring</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root {
+  --bg:#080c18;--bg2:#0c1120;--bg3:#101828;--card:#111b2e;--card2:#162035;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);--border3:rgba(255,255,255,0.18);
+  --text:#dde3f0;--text2:#8493b0;--text3:#4a5570;
+  --accent:#3b82f6;--accent2:#60a5fa;--accent3:rgba(59,130,246,0.15);
+  --ok:#10b981;--ok-bg:rgba(16,185,129,0.12);
+  --warn:#f59e0b;--warn-bg:rgba(245,158,11,0.12);
+  --crit:#ef4444;--crit-bg:rgba(239,68,68,0.12);
+  --unknown:#6b7280;--unknown-bg:rgba(107,114,128,0.12);
+  --purple:#8b5cf6;--cyan:#06b6d4;
+  --sh:0 8px 32px rgba(0,0,0,0.4);
+  --font:'Syne',sans-serif;--mono:'JetBrains Mono',monospace;
+  --sidebar-w:230px;
+}
+body.theme-white {
+  --bg:#f4f3ef;--bg2:#ffffff;--bg3:#f0efe9;--card:#ffffff;--card2:#f4f3ef;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);--border3:rgba(0,0,0,0.22);
+  --text:#1a1916;--text2:#5a5650;--text3:#9a9690;
+  --accent:#2563eb;--accent2:#1d4ed8;--accent3:rgba(37,99,235,0.1);
+  --ok:#15803d;--ok-bg:#dcfce7;--warn:#b45309;--warn-bg:#fef3c7;
+  --crit:#dc2626;--crit-bg:#fee2e2;--unknown:#374151;--unknown-bg:#f3f4f6;
+  --sh:0 4px 24px rgba(0,0,0,0.1);
+}
+body.theme-midnight {
+  --bg:#04080f;--bg2:#060d1a;--bg3:#0a1225;--card:#0d1830;--card2:#101e38;
+  --border:rgba(99,179,237,0.08);--border2:rgba(99,179,237,0.16);--border3:rgba(99,179,237,0.28);
+  --text:#c8dff5;--text2:#6b8fb3;--text3:#374e6b;
+  --accent:#38bdf8;--accent2:#7dd3fc;--accent3:rgba(56,189,248,0.12);
+  --ok:#34d399;--ok-bg:rgba(52,211,153,0.12);--warn:#fbbf24;--warn-bg:rgba(251,191,36,0.12);
+  --crit:#f87171;--crit-bg:rgba(248,113,113,0.12);
+  --sh:0 8px 40px rgba(0,0,0,0.6);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;font-size:14px;transition:background 0.3s,color 0.3s;}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--bg2);border-right:1px solid var(--border2);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;transition:background 0.3s,border-color 0.3s;}
+.sidebar-logo{padding:24px 20px 18px;border-bottom:1px solid var(--border);}
+.logo-mark{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:3px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;}
+.logo-main{display:flex;align-items:center;gap:10px;}
+.logo-ico{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),var(--purple));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;flex-shrink:0;}
+.logo-text{font-size:18px;font-weight:800;letter-spacing:-0.5px;color:var(--text);}
+.logo-text span{color:var(--accent2);}
+.ws-badge{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--text3);}
+.ws-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background 0.3s;}
+.ws-dot.connected{background:var(--ok);box-shadow:0 0 6px var(--ok);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.5}}
+.nav{flex:1;padding:14px 12px;display:flex;flex-direction:column;gap:3px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;border:none;background:none;width:100%;text-align:left;transition:all 0.18s;letter-spacing:0.3px;font-family:var(--font);}
+.nav-item:hover{background:var(--bg3);color:var(--text2);}
+.nav-item.active{background:rgba(59,130,246,0.12);color:var(--accent2);}
+.nav-icon{font-size:15px;}
+.alert-nav-badge{margin-left:auto;background:var(--crit);color:#fff;border-radius:10px;font-size:10px;padding:2px 6px;font-family:var(--mono);display:none;}
+.theme-switcher{padding:14px 12px;border-top:1px solid var(--border);}
+.theme-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-bottom:8px;}
+.theme-row{display:flex;gap:5px;}
+.theme-btn{flex:1;padding:6px 4px;border-radius:7px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all 0.15s;text-align:center;}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent2);}
+.theme-btn.active{background:var(--accent3);color:var(--accent2);border-color:var(--accent);}
+.sidebar-footer{padding:14px 20px;border-top:1px solid var(--border);font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.7;}
+
+/* MAIN */
+.main{margin-left:var(--sidebar-w);flex:1;padding:28px;min-height:100vh;background:var(--bg);transition:background 0.3s;}
+.page{display:none;}
+.page.active{display:block;animation:fadeUp 0.25s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* PAGE HEADER */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;}
+.page-title{font-size:26px;font-weight:800;letter-spacing:-0.8px;line-height:1.2;color:var(--text);}
+.page-subtitle{font-size:12px;color:var(--text3);font-family:var(--mono);margin-top:4px;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:9px;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--text2);transition:all 0.15s;letter-spacing:0.2px;}
+.btn:hover{background:rgba(255,255,255,0.08);color:var(--text);}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border-color:transparent;}
+.btn-primary:hover{opacity:0.88;}
+.btn-danger{background:var(--crit-bg);color:var(--crit);border-color:rgba(239,68,68,0.25);}
+.btn-danger:hover{background:rgba(239,68,68,0.22);}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2);}
+.btn-outline:hover{border-color:var(--border3);color:var(--text);}
+.btn-sm{padding:5px 10px;font-size:11px;}
+
+/* SERIAL PANEL */
+.serial-panel{background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:18px 20px;margin-bottom:24px;position:relative;overflow:hidden;}
+.serial-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--cyan));border-radius:14px 14px 0 0;}
+.serial-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.serial-panel-title{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;}
+.serial-info{display:flex;gap:24px;font-family:var(--mono);font-size:11px;color:var(--text3);flex-wrap:wrap;}
+.serial-info strong{color:var(--text2);}
+
+/* STAT CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:18px;position:relative;overflow:hidden;transition:all 0.22s;}
+.stat-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--sh);}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:13px 13px 0 0;}
+.stat-card:nth-child(1)::before{background:linear-gradient(90deg,var(--accent),var(--cyan));}
+.stat-card:nth-child(2)::before{background:linear-gradient(90deg,var(--ok),var(--cyan));}
+.stat-card:nth-child(3)::before{background:linear-gradient(90deg,var(--warn),#fb923c);}
+.stat-card:nth-child(4)::before{background:linear-gradient(90deg,var(--crit),var(--purple));}
+.stat-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-bottom:10px;}
+.stat-value{font-size:34px;font-weight:800;letter-spacing:-1.5px;line-height:1;font-family:var(--mono);}
+.stat-value.ok{color:var(--ok);}
+.stat-value.warn{color:var(--warn);}
+.stat-value.crit{color:var(--crit);}
+.stat-value.def{color:var(--accent2);}
+.stat-sub{margin-top:7px;font-family:var(--mono);font-size:10px;color:var(--text3);}
+
+/* MACHINE CARDS */
+.machines-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;}
+.machine-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:all 0.22s;}
+.machine-card:hover{box-shadow:var(--sh);transform:translateY(-2px);border-color:var(--border2);}
+.machine-card.status-critical{border-color:rgba(239,68,68,0.4);}
+.machine-card.status-warning{border-color:rgba(245,158,11,0.35);}
+.machine-card.status-ok{border-color:rgba(16,185,129,0.3);}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid var(--border);}
+.card-title-group{flex:1;min-width:0;}
+.card-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+.card-id{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;}
+.card-actions{display:flex;gap:6px;align-items:center;}
+.status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border:1px solid;}
+.status-badge.ok{background:var(--ok-bg);color:var(--ok);border-color:rgba(16,185,129,0.25);}
+.status-badge.warning{background:var(--warn-bg);color:var(--warn);border-color:rgba(245,158,11,0.25);}
+.status-badge.critical{background:var(--crit-bg);color:var(--crit);border-color:rgba(239,68,68,0.3);animation:blink 2s infinite;}
+.status-badge.unknown{background:var(--unknown-bg);color:var(--unknown);border-color:rgba(107,114,128,0.2);}
+.status-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.conn-badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--text3);}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background 0.3s;}
+.conn-dot.on{background:var(--ok);box-shadow:0 0 5px var(--ok);animation:blink 2s infinite;}
+.card-body{padding:16px;}
+.sensors-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.sensor-item{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:11px 10px;text-align:center;transition:border-color 0.2s;}
+.sensor-item:hover{border-color:var(--border2);}
+.sensor-icon{font-size:17px;margin-bottom:5px;}
+.sensor-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:4px;}
+.sensor-value{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-0.5px;}
+.sensor-value.ok{color:var(--ok);}
+.sensor-value.warning{color:var(--warn);}
+.sensor-value.critical{color:var(--crit);}
+.sensor-value.null-val{color:var(--text3);font-size:13px;}
+.sensor-unit{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:2px;}
+.card-footer{display:flex;align-items:center;justify-content:space-between;padding:11px 17px;border-top:1px solid var(--border);background:var(--bg3);}
+.last-seen{font-family:var(--mono);font-size:10px;color:var(--text3);}
+
+/* ALERTS */
+.alert-summary-row{display:flex;gap:12px;margin-bottom:18px;}
+.alert-sum{flex:1;border-radius:11px;padding:14px 16px;border:1px solid;}
+.alert-sum.s-crit{background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(239,68,68,0.05));border-color:rgba(239,68,68,0.28);}
+.alert-sum.s-warn{background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05));border-color:rgba(245,158,11,0.28);}
+.alert-sum.s-info{background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(59,130,246,0.05));border-color:rgba(59,130,246,0.28);}
+.alert-sum-val{font-size:22px;font-weight:800;font-family:var(--mono);}
+.alert-sum-lbl{font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:0.7px;}
+.alert-filters{display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap;}
+.filter-btn{padding:5px 13px;border-radius:20px;border:1px solid var(--border2);background:none;color:var(--text3);font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all 0.15s;letter-spacing:0.2px;}
+.filter-btn:hover{border-color:var(--border3);color:var(--text2);}
+.filter-btn.active{background:rgba(59,130,246,0.1);color:var(--accent2);border-color:rgba(59,130,246,0.3);}
+.filter-btn.fc-crit.active{background:var(--crit-bg);color:var(--crit);border-color:rgba(239,68,68,0.3);}
+.filter-btn.fc-warn.active{background:var(--warn-bg);color:var(--warn);border-color:rgba(245,158,11,0.3);}
+.alert-list{display:flex;flex-direction:column;gap:8px;}
+.alert-item{background:var(--card);border:1px solid var(--border);border-left:3px solid;border-radius:11px;padding:13px 16px;display:flex;align-items:center;gap:14px;transition:all 0.18s;}
+.alert-item:hover{border-color:var(--border2);transform:translateX(2px);}
+.alert-item.critical{border-left-color:var(--crit);background:linear-gradient(90deg,rgba(239,68,68,0.05),var(--card));}
+.alert-item.warning{border-left-color:var(--warn);background:linear-gradient(90deg,rgba(245,158,11,0.05),var(--card));}
+.alert-item.acknowledged{opacity:0.4;filter:saturate(0.3);}
+.alert-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.alert-icon.critical{background:var(--crit-bg);}
+.alert-icon.warning{background:var(--warn-bg);}
+.alert-content{flex:1;min-width:0;}
+.alert-machine{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.alert-message{font-size:11px;color:var(--text2);font-family:var(--mono);}
+.alert-time{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:4px;}
+.alert-actions{display:flex;gap:6px;align-items:center;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3);}
+.empty-state .empty-icon{font-size:44px;margin-bottom:12px;}
+.empty-state p{font-size:13px;font-family:var(--mono);}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:28px;width:420px;max-width:95vw;box-shadow:0 24px 80px rgba(0,0,0,0.5);animation:fadeUp 0.25s ease;}
+.modal-title{font-size:18px;font-weight:800;margin-bottom:20px;color:var(--text);}
+.form-group{margin-bottom:15px;}
+.form-label{display:block;font-size:10px;font-weight:700;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.form-input{width:100%;padding:9px 13px;border:1px solid var(--border2);border-radius:9px;font-size:13px;font-family:var(--font);background:var(--bg3);color:var(--text);outline:none;transition:border-color 0.15s;}
+.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent3);}
+.form-input::placeholder{color:var(--text3);}
+.form-hint{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:4px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;}
+
+/* DETAIL */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.detail-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;}
+.detail-card h3{font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:14px;}
+.chart-container{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:16px;}
+.chart-container h3{font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:14px;}
+.big-sensor{display:flex;align-items:center;gap:14px;padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin-bottom:9px;}
+.big-sensor:last-child{margin-bottom:0;}
+.big-sensor-icon{font-size:26px;}
+.big-sensor-label{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.big-sensor-value{font-family:var(--mono);font-size:24px;font-weight:600;}
+.big-sensor-status .status-badge{margin-top:4px;}
+.conn-info-list{margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--text3);line-height:2;}
+.conn-info-list span{color:var(--text2);}
+
+/* LIVE BADGE */
+.live-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--ok);background:var(--ok-bg);border:1px solid rgba(16,185,129,0.2);padding:3px 9px;border-radius:20px;font-family:var(--mono);}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--ok);animation:blink 1.4s infinite;}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
+
+/* TOAST */
+.toast-container{position:fixed;top:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;}
+.toast{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:11px;font-size:12px;font-weight:600;font-family:var(--font);box-shadow:var(--sh);animation:slideIn 0.25s cubic-bezier(.32,.72,0,1);max-width:300px;border:1px solid var(--border2);background:var(--card2);color:var(--text);}
+.toast.success{border-left:3px solid var(--ok);}
+.toast.error{border-left:3px solid var(--crit);}
+.toast.info{border-left:3px solid var(--accent);}
+@keyframes slideIn{from{transform:translateX(80px);opacity:0}to{transform:translateX(0);opacity:1}}
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">Industrial</div>
+    <div class="logo-main">
+      <div class="logo-ico">M</div>
+      <div class="logo-text">IMM<span>S</span></div>
+    </div>
+    <div class="ws-badge">
+      <div class="ws-dot" id="wsDot"></div>
+      <span id="wsStatus">Connecting…</span>
+    </div>
+  </div>
+  <div class="nav">
+    <button class="nav-item active" onclick="showPage('overview')" data-page="overview"><span class="nav-icon">⬛</span>Overview</button>
+    <button class="nav-item" onclick="showPage('machines')" data-page="machines"><span class="nav-icon">⚙️</span>Machines</button>
+    <button class="nav-item" onclick="showPage('alerts')" data-page="alerts"><span class="nav-icon">🔔</span>Alerts<span class="alert-nav-badge" id="alertBadge"></span></button>
+  </div>
+  <div class="theme-switcher">
+    <div class="theme-label">Theme</div>
+    <div class="theme-row">
+      <button class="theme-btn active" onclick="setTheme('dark',this)">Dark</button>
+      <button class="theme-btn" onclick="setTheme('white',this)">Light</button>
+      <button class="theme-btn" onclick="setTheme('midnight',this)">Blue</button>
+    </div>
+  </div>
+  <div class="sidebar-footer">IMMS v1.0.0<br/>Threshold-Based Engine<br/>Real USB Input Only</div>
+</nav>
+
+<div class="main">
+
+  <!-- OVERVIEW -->
+  <div class="page active" id="page-overview">
+    <div class="page-header">
+      <div>
+        <div class="page-title">System Overview</div>
+        <div class="page-subtitle">Live industrial monitoring — real hardware only</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+        <button class="btn btn-outline" onclick="refreshAll()">↻ Refresh</button>
+      </div>
+    </div>
+    <div class="serial-panel">
+      <div class="serial-panel-header">
+        <span class="serial-panel-title">🔌 USB Serial Connection</span>
+        <div style="display:flex;gap:7px">
+          <button class="btn btn-sm btn-outline" onclick="fetchSerialPorts()">Scan Ports</button>
+          <button class="btn btn-sm btn-primary" onclick="startSerial()">▶ Start</button>
+          <button class="btn btn-sm" onclick="stopSerial()">■ Stop</button>
+        </div>
+      </div>
+      <div class="serial-info" id="serialInfo">
+        <span>Port: <strong id="serialPort">—</strong></span>
+        <span>Baud: <strong id="serialBaud">—</strong></span>
+        <span>Status: <strong id="serialRunning">—</strong></span>
+        <span>Available: <strong id="serialPorts">—</strong></span>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total Machines</div><div class="stat-value def" id="totalMachines">—</div><div class="stat-sub">Registered in system</div></div>
+      <div class="stat-card"><div class="stat-label">Connected</div><div class="stat-value ok" id="connectedCount">—</div><div class="stat-sub">Active USB links</div></div>
+      <div class="stat-card"><div class="stat-label">Warnings</div><div class="stat-value warn" id="warningCount">—</div><div class="stat-sub">Threshold exceeded</div></div>
+      <div class="stat-card"><div class="stat-label">Critical</div><div class="stat-value crit" id="criticalCount">—</div><div class="stat-sub">Immediate attention</div></div>
+    </div>
+    <div class="machines-grid" id="overviewMachines"></div>
+  </div>
+
+  <!-- MACHINES -->
+  <div class="page" id="page-machines">
+    <div class="page-header">
+      <div><div class="page-title">Machines</div><div class="page-subtitle">Manage registered hardware</div></div>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Add Machine</button>
+    </div>
+    <div class="machines-grid" id="machinesList"></div>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="page" id="page-detail">
+    <div class="page-header">
+      <div>
+        <button class="btn btn-outline btn-sm" onclick="showPage('machines')" style="margin-bottom:12px">← Back</button>
+        <div class="page-title" id="detailName">Machine</div>
+        <div class="page-subtitle" id="detailId">—</div>
+      </div>
+      <div id="detailStatusBadge"></div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-card"><h3>Sensor Readings</h3><div id="detailSensors"></div></div>
+      <div class="detail-card"><h3>Connection Info</h3><div id="detailConnInfo"></div></div>
+    </div>
+    <div class="chart-container">
+      <h3>Live Sensor History (last 30 readings)</h3>
+      <canvas id="sensorChart" height="100"></canvas>
+    </div>
+  </div>
+
+  <!-- ALERTS -->
+  <div class="page" id="page-alerts">
+    <div class="page-header">
+      <div><div class="page-title">Alert Center</div><div class="page-subtitle">Threshold violations and system events</div></div>
+    </div>
+    <div class="alert-summary-row">
+      <div class="alert-sum s-crit"><div class="alert-sum-val" style="color:var(--crit)" id="sumCrit">0</div><div class="alert-sum-lbl">Critical</div></div>
+      <div class="alert-sum s-warn"><div class="alert-sum-val" style="color:var(--warn)" id="sumWarn">0</div><div class="alert-sum-lbl">Warnings</div></div>
+      <div class="alert-sum s-info"><div class="alert-sum-val" style="color:var(--accent2)" id="sumUnack">0</div><div class="alert-sum-lbl">Unacknowledged</div></div>
+    </div>
+    <div class="alert-filters">
+      <button class="filter-btn active" onclick="filterAlerts('all',this)">All</button>
+      <button class="filter-btn fc-crit" onclick="filterAlerts('critical',this)">🔴 Critical</button>
+      <button class="filter-btn fc-warn" onclick="filterAlerts('warning',this)">⚠ Warning</button>
+      <button class="filter-btn" onclick="filterAlerts('unacknowledged',this)">Unacknowledged</button>
+    </div>
+    <div class="alert-list" id="alertList"></div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-title">⚙ Add New Machine</div>
+    <div class="form-group">
+      <label class="form-label">Machine Name</label>
+      <input class="form-input" id="machineName" placeholder="e.g. Compressor Unit A"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Serial Port (optional)</label>
+      <input class="form-input" id="machinePort" placeholder="e.g. /dev/ttyUSB0 or COM3"/>
+      <div class="form-hint">Leave blank to use the global serial port.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeAddModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addMachine()">Add Machine</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const API = window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1'
+  ?'http://localhost:5000/api':`${window.location.origin}/api`;
+const WS_URL = window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1'
+  ?'ws://localhost:5000':`${window.location.protocol==='https:'?'wss':'ws'}://${window.location.host}`;
+
+let machines=[],alerts=[],currentFilter='all',currentDetailId=null,sensorChart=null;
+const detailHistory={labels:[],temp:[],vibration:[],pressure:[]};
+
+function setTheme(theme,btn){
+  document.body.className=theme==='dark'?'':`theme-${theme}`;
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(sensorChart){const s=getComputedStyle(document.body);sensorChart.options.scales.x.grid.color=s.getPropertyValue('--border').trim();sensorChart.options.scales.y.grid.color=s.getPropertyValue('--border').trim();sensorChart.options.scales.x.ticks.color=s.getPropertyValue('--text3').trim();sensorChart.options.scales.y.ticks.color=s.getPropertyValue('--text3').trim();sensorChart.update();}
+}
+
+let ws;
+function connectWS(){
+  try{
+    ws=new WebSocket(WS_URL);
+    ws.onopen=()=>{document.getElementById('wsDot').classList.add('connected');document.getElementById('wsStatus').textContent='Live';};
+    ws.onmessage=(e)=>{const msg=JSON.parse(e.data);if(msg.event==='machine:update')onMachineUpdate(msg.data);if(msg.event==='machine:disconnected')onMachineDisconnected(msg.data);if(msg.event==='alerts:new')onNewAlerts(msg.data);};
+    ws.onclose=()=>{document.getElementById('wsDot').classList.remove('connected');document.getElementById('wsStatus').textContent='Disconnected';setTimeout(connectWS,3000);};
+    ws.onerror=()=>ws.close();
+  }catch(e){console.warn('WS failed');}
+}
+
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  const ni=document.querySelector(`[data-page="${name}"]`);if(ni)ni.classList.add('active');
+  if(name==='overview')renderOverview();
+  if(name==='machines')renderMachines();
+  if(name==='alerts')fetchAlerts();
+}
+
+async function get(path){const r=await fetch(API+path);return r.json();}
+async function post(path,body){const r=await fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
+async function del(path){const r=await fetch(API+path,{method:'DELETE'});return r.json();}
+
+async function fetchMachines(){const res=await get('/machines');if(res.success)machines=res.data;}
+async function fetchAlerts(){const res=await get('/alerts?limit=200');if(res.success){alerts=res.data;renderAlerts();updateAlertBadge();}}
+async function refreshAll(){await fetchMachines();await fetchAlerts();renderOverview();renderMachines();}
+
+async function fetchSerialPorts(){const res=await get('/serial/ports');if(res.success){const p=res.data.map(p=>p.path).join(', ')||'None found';document.getElementById('serialPorts').textContent=p;toast(`Found: ${p}`,'info');}}
+async function startSerial(){const res=await post('/serial/start',{});toast(res.success?'▶ Serial started':res.error,res.success?'success':'error');await fetchSerialStatus();}
+async function stopSerial(){const res=await post('/serial/stop',{});toast(res.success?'■ Serial stopped':res.error,res.success?'info':'error');await fetchSerialStatus();}
+async function fetchSerialStatus(){const res=await get('/serial/status');if(res.success){const s=res.data;document.getElementById('serialPort').textContent=s.portPath;document.getElementById('serialBaud').textContent=s.baudRate;document.getElementById('serialRunning').textContent=s.isRunning?'🟢 Running':'⭕ Stopped';}}
+
+function renderOverview(){
+  document.getElementById('totalMachines').textContent=machines.length;
+  document.getElementById('connectedCount').textContent=machines.filter(m=>m.connected).length;
+  document.getElementById('warningCount').textContent=machines.filter(m=>m.status==='warning').length;
+  document.getElementById('criticalCount').textContent=machines.filter(m=>m.status==='critical').length;
+  document.getElementById('overviewMachines').innerHTML=machines.map(machineCardHTML).join('');
+}
+function renderMachines(){
+  const el=document.getElementById('machinesList');
+  if(!machines.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚙️</div><p>No machines registered. Add one to begin.</p></div>`;return;}
+  el.innerHTML=machines.map(machineCardHTML).join('');
+}
+
+function machineCardHTML(m){
+  const sc=m.status||'unknown';
+  const ts=evaluateParam('temperature',m.temperature),vs=evaluateParam('vibration',m.vibration),ps=evaluateParam('pressure',m.pressure);
+  return`<div class="machine-card status-${sc}" id="card-${m.id}">
+    <div class="card-header">
+      <div class="card-title-group"><div class="card-name">${m.name}</div><div class="card-id">${m.id}</div></div>
+      <div class="card-actions">
+        <span class="status-badge ${sc}"><span class="status-dot ${sc}"></span>${sc.toUpperCase()}</span>
+        <button class="btn btn-sm btn-outline" onclick="showDetail('${m.id}')">Detail</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteMachine('${m.id}')">✕</button>
+      </div>
+    </div>
+    <div class="card-body"><div class="sensors-grid">
+      <div class="sensor-item"><div class="sensor-icon">🌡️</div><div class="sensor-label">Temperature</div><div class="sensor-value ${m.temperature!=null?ts:'null-val'}">${m.temperature!=null&&m.temperature!==undefined?m.temperature:'—'}</div><div class="sensor-unit">°C</div></div>
+      <div class="sensor-item"><div class="sensor-icon">📳</div><div class="sensor-label">Vibration</div><div class="sensor-value ${m.vibration!=null?vs:'null-val'}">${m.vibration!=null&&m.vibration!==undefined?m.vibration:'—'}</div><div class="sensor-unit">g-force</div></div>
+      <div class="sensor-item"><div class="sensor-icon">🔵</div><div class="sensor-label">Pressure</div><div class="sensor-value ${m.pressure!=null?ps:'null-val'}">${m.pressure!=null&&m.pressure!==undefined?m.pressure:'—'}</div><div class="sensor-unit">bar</div></div>
+    </div></div>
+    <div class="card-footer">
+      <span class="conn-badge"><span class="conn-dot ${m.connected?'on':''}"></span>${m.connected?'Connected':'Disconnected'}</span>
+      <span class="last-seen">${m.lastSeen?'Last: '+timeAgo(m.lastSeen):'No data yet'}</span>
+    </div>
+  </div>`;
+}
+
+function showDetail(id){
+  currentDetailId=id;const m=machines.find(x=>x.id===id);if(!m)return;
+  document.getElementById('detailName').textContent=m.name;
+  document.getElementById('detailId').textContent=m.id;
+  document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${m.status||'unknown'}"><span class="status-dot"></span>${(m.status||'unknown').toUpperCase()}</span>`;
+  const params=[{icon:'🌡️',label:'Temperature',val:m.temperature,unit:'°C',key:'temperature'},{icon:'📳',label:'Vibration',val:m.vibration,unit:'g',key:'vibration'},{icon:'🔵',label:'Pressure',val:m.pressure,unit:'bar',key:'pressure'}];
+  document.getElementById('detailSensors').innerHTML=params.map(p=>{const sev=p.val!=null&&p.val!==undefined?evaluateParam(p.key,p.val):'null-val';return`<div class="big-sensor"><div class="big-sensor-icon">${p.icon}</div><div style="flex:1"><div class="big-sensor-label">${p.label}</div><div class="big-sensor-value ${sev}">${p.val!=null&&p.val!==undefined?p.val+' '+p.unit:'—'}</div></div><div class="big-sensor-status"><span class="status-badge ${sev}">${sev.replace('null-val','—').toUpperCase()}</span></div></div>`;}).join('');
+  document.getElementById('detailConnInfo').innerHTML=`<div class="big-sensor"><div class="big-sensor-icon">${m.connected?'🟢':'🔴'}</div><div><div class="big-sensor-label">Connection</div><div class="big-sensor-value">${m.connected?'Connected':'Disconnected'}</div></div></div><div class="conn-info-list"><div>ID: <span>${m.id}</span></div><div>Port: <span>${m.serialPort||'Global'}</span></div><div>Last Seen: <span>${m.lastSeen?new Date(m.lastSeen).toLocaleString():'Never'}</span></div></div>`;
+  initDetailChart(m);showPage('detail');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+}
+
+function initDetailChart(m){
+  if(sensorChart)sensorChart.destroy();
+  const ctx=document.getElementById('sensorChart').getContext('2d');
+  detailHistory.labels=[];detailHistory.temp=[];detailHistory.vibration=[];detailHistory.pressure=[];
+  if(m.temperature!=null&&m.temperature!==undefined){const now=new Date().toLocaleTimeString();detailHistory.labels.push(now);detailHistory.temp.push(m.temperature);detailHistory.vibration.push(m.vibration);detailHistory.pressure.push(m.pressure);}
+  const s=getComputedStyle(document.body);const gc=s.getPropertyValue('--border').trim()||'rgba(255,255,255,0.06)';const tc=s.getPropertyValue('--text3').trim()||'#4a5570';
+  sensorChart=new Chart(ctx,{type:'line',data:{labels:detailHistory.labels,datasets:[{label:'Temperature (°C)',data:detailHistory.temp,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,0.07)',tension:0.4,pointRadius:3,borderWidth:1.8},{label:'Vibration (g)',data:detailHistory.vibration,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.07)',tension:0.4,pointRadius:3,borderWidth:1.8},{label:'Pressure (bar)',data:detailHistory.pressure,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.07)',tension:0.4,pointRadius:3,borderWidth:1.8}]},options:{responsive:true,plugins:{legend:{position:'top',labels:{color:tc,font:{family:"'JetBrains Mono',monospace",size:11}}}},scales:{x:{grid:{color:gc},ticks:{color:tc,font:{size:10}},border:{color:gc}},y:{grid:{color:gc},ticks:{color:tc,font:{size:10}},beginAtZero:true,border:{color:gc}}}}});
+}
+
+function renderAlerts(){
+  let list=[...alerts];
+  if(currentFilter==='critical')list=list.filter(a=>a.severity==='critical');
+  if(currentFilter==='warning')list=list.filter(a=>a.severity==='warning');
+  if(currentFilter==='unacknowledged')list=list.filter(a=>!a.acknowledged);
+  document.getElementById('sumCrit').textContent=alerts.filter(a=>a.severity==='critical').length;
+  document.getElementById('sumWarn').textContent=alerts.filter(a=>a.severity==='warning').length;
+  document.getElementById('sumUnack').textContent=alerts.filter(a=>!a.acknowledged).length;
+  const el=document.getElementById('alertList');
+  if(!list.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">✅</div><p>No alerts for this filter.</p></div>`;return;}
+  el.innerHTML=list.map(a=>`<div class="alert-item ${a.severity} ${a.acknowledged?'acknowledged':''}" id="alert-${a._id}"><div class="alert-icon ${a.severity}">${a.severity==='critical'?'🔴':'⚠️'}</div><div class="alert-content"><div class="alert-machine">${a.machineName} — ${a.machineId}</div><div class="alert-message">${a.message}</div><div class="alert-time">${new Date(a.timestamp).toLocaleString()}</div></div><div class="alert-actions">${!a.acknowledged?`<button class="btn btn-sm btn-outline" onclick="ackAlert('${a._id}')">Acknowledge</button>`:'<span style="font-size:10px;color:var(--ok);font-family:var(--mono)">✓ Acked</span>'}<button class="btn btn-sm btn-danger" onclick="delAlert('${a._id}')">✕</button></div></div>`).join('');
+}
+
+function filterAlerts(filter,btn){currentFilter=filter;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderAlerts();}
+async function ackAlert(id){const res=await post(`/alerts/${id}/acknowledge`,{});if(res.success){const a=alerts.find(x=>x._id===id);if(a){a.acknowledged=true;a.acknowledgedAt=new Date();}renderAlerts();updateAlertBadge();toast('✓ Alert acknowledged','success');}}
+async function delAlert(id){const res=await del(`/alerts/${id}`);if(res.success){alerts=alerts.filter(a=>a._id!==id);renderAlerts();updateAlertBadge();}}
+function updateAlertBadge(){const u=alerts.filter(a=>!a.acknowledged).length;const b=document.getElementById('alertBadge');b.style.display=u>0?'inline':'none';b.textContent=u;}
+
+function openAddModal(){document.getElementById('addModal').classList.add('open');}
+function closeAddModal(){document.getElementById('addModal').classList.remove('open');}
+async function addMachine(){
+  const name=document.getElementById('machineName').value.trim(),port=document.getElementById('machinePort').value.trim();
+  if(!name){toast('Machine name is required','error');return;}
+  const res=await post('/machines',{name,serialPort:port||null});
+  if(res.success){machines.push(res.data);closeAddModal();document.getElementById('machineName').value='';document.getElementById('machinePort').value='';renderMachines();renderOverview();toast(`Machine "${name}" added`,'success');}else{toast(res.error,'error');}
+}
+async function deleteMachine(id){
+  if(!confirm(`Delete machine ${id}?`))return;
+  const res=await del(`/machines/${id}`);if(res.success){machines=machines.filter(m=>m.id!==id);renderMachines();renderOverview();toast(`Machine ${id} deleted`,'info');}
+}
+
+function onMachineUpdate(data){
+  const idx=machines.findIndex(m=>m.id===data.id);if(idx!==-1)machines[idx]=data;else machines.push(data);
+  const card=document.getElementById(`card-${data.id}`);if(card)card.outerHTML=machineCardHTML(data);
+  renderOverview();
+  if(currentDetailId===data.id&&sensorChart){const now=new Date().toLocaleTimeString();detailHistory.labels.push(now);detailHistory.temp.push(data.temperature);detailHistory.vibration.push(data.vibration);detailHistory.pressure.push(data.pressure);if(detailHistory.labels.length>30){detailHistory.labels.shift();detailHistory.temp.shift();detailHistory.vibration.shift();detailHistory.pressure.shift();}sensorChart.update();}
+}
+function onMachineDisconnected(data){const m=machines.find(x=>x.id===data.machineId);if(m){m.connected=false;m.status='unknown';}renderOverview();renderMachines();toast(`Machine ${data.machineId} disconnected`,'error');}
+function onNewAlerts(newAlerts){alerts=[...newAlerts,...alerts];updateAlertBadge();const first=newAlerts[0];toast(`⚠ ${first.severity.toUpperCase()}: ${first.message}`,first.severity==='critical'?'error':'info');}
+
+function evaluateParam(param,val){
+  if(val===null||val===undefined)return 'null-val';
+  if(param==='temperature'){if(val>95)return 'critical';if(val>=80)return 'warning';return 'ok';}
+  if(param==='vibration'){if(val>5)return 'critical';if(val>=2)return 'warning';return 'ok';}
+  if(param==='pressure'){if(val<1||val>7)return 'critical';if(val<2||val>5)return 'warning';return 'ok';}
+  return 'ok';
+}
+
+function timeAgo(dateStr){const diff=Math.floor((Date.now()-new Date(dateStr))/1000);if(diff<5)return 'just now';if(diff<60)return`${diff}s ago`;if(diff<3600)return`${Math.floor(diff/60)}m ago`;return new Date(dateStr).toLocaleTimeString();}
+function toast(msg,type='info'){const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;document.getElementById('toastContainer').appendChild(el);setTimeout(()=>el.remove(),4000);}
+
+setInterval(async()=>{if(!ws||ws.readyState!==WebSocket.OPEN){await fetchMachines();renderOverview();renderMachines();}},2000);
+
+async function init(){connectWS();await fetchMachines();await fetchAlerts();await fetchSerialStatus();renderOverview();}
+init();
+</script>
+</body>
+</html>
