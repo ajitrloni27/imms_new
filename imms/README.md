@@ -141,6 +141,7 @@ The returned `id` (e.g., `M-4F2A1B`) must match the `MACHINE_ID` in your Arduino
 
 ---
 
+
 ### STEP 6: Open Dashboard
 
 Open `frontend/index.html` in your browser:
