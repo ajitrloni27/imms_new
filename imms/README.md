@@ -5,6 +5,7 @@ A production-ready real-time monitoring system for industrial machines.
 
 ---
 
+
 ## 📁 Project Structure
 
 ```
